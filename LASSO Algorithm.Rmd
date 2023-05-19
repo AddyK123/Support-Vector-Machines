@@ -6,8 +6,8 @@ output: html_document
 ---
 
 ```{r results=FALSE}
-train <- read.csv("/Users/adityakhera/Desktop/AML Practice/Pset 3/LASSO_train.csv")
-test <- read.csv("/Users/adityakhera/Desktop/AML Practice/Pset 3/LASSO_test.csv")
+train <- read.csv("/Users/adityakhera/Documents/GitHub/Support-Vector-Machines/Training Data/LASSO_train.csv")
+test <- read.csv("/Users/adityakhera/Documents/GitHub/Support-Vector-Machines/Training Data/LASSO_test.csv")
 library(caret)
 ```
 

@@ -15,8 +15,8 @@ library("plotly")
 ## Data Set-Up
 ```{r}
 set.seed(2)
-data5 <- read.csv("/Users/adityakhera/Desktop/AML Practice/Pset 3/train.5.txt", header=FALSE,)
-data6 <- read.csv("/Users/adityakhera/Desktop/AML Practice/Pset 3/train.6.txt", header=FALSE,)
+data5 <- read.csv("/Users/adityakhera/Documents/GitHub/Support-Vector-Machines/Training Data/train.5.txt", header=FALSE,)
+data6 <- read.csv("/Users/adityakhera/Documents/GitHub/Support-Vector-Machines/Training Data/train.6.txt", header=FALSE,)
 
 n.5 <- length(data5[,1])
 n.6 <- length(data6[,1])
