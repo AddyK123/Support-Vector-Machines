@@ -1,0 +1,138 @@
+---
+title: "Question 3"
+author: "Aditya Khera"
+date: "2023-04-30"
+output: html_document
+---
+
+```{r results=FALSE}
+train <- read.csv("/Users/adityakhera/Desktop/AML Practice/Pset 3/LASSO_train.csv")
+test <- read.csv("/Users/adityakhera/Desktop/AML Practice/Pset 3/LASSO_test.csv")
+library(caret)
+```
+
+## Problem 3.1
+```{r}
+
+set.seed(1)
+
+S_lam <- function(u,lambda) {
+  S_out <- ifelse(u>lambda,u-lambda,ifelse(u< -1*lambda,u+lambda,0))
+  return(S_out)
+}
+
+my_LASSO <- function(data = train, lambda){
+  #standardize features
+  step <- .8
+  unscaled_data <- data[, -21]
+  train_data <- scale(unscaled_data)
+  train_data <- as.matrix(train_data)
+  center_label <- mean(data[, 21])
+  scaled_label <- data[, 21] - center_label
+  scaled_label <- as.matrix(scaled_label)
+  
+  # set initial beta vals
+  beta <- matrix(rnorm(ncol(train_data)))
+  beta <- ifelse(beta<0,0.5,beta)
+  
+  beta_matrix <- matrix(NA,nrow=ncol(train_data),ncol=25)
+  beta_matrix[,1] <- beta
+  
+  for (t in 2:ncol(beta_matrix)) {
+    beta <- beta_matrix[,t-1]
+    beta_matrix[,t] <- S_lam(beta+step*t(train_data)%*%(scaled_label-train_data%*%beta)/nrow(train_data),lambda)
+  }
+
+  beta <- beta_matrix[, 25]
+  beta_sum <- 0
+  for (r in 1:length(beta)){
+    beta[r] <- beta[r]/sd(data[, r])
+    beta_sum <- beta_sum + beta[r]+mean(data[, r])
+  }
+  b0 <- center_label - beta_sum
+  final_beta <- c(b0, beta)
+  design <- cbind(rep(1,nrow(unscaled_data)), unscaled_data)
+  design <- as.matrix(design)
+  train_error <- mean(c(matrix(data[,21]) - design%*%matrix(final_beta))^2)
+  return(list(beta_L=final_beta,train_error=train_error))
+}
+```
+
+## Problem 3.1
+```{r}
+my_LASSO(train, .3)
+```
+Above is the output from the rendition of the my_LASSO helper function. We can see estimates for the correct beta values as well as an overall train error.
+
+## Problem 3.2
+```{r}
+lambdas <- seq(0, 2, .1)
+train_beta_graph <- matrix(NA, nrow=21, ncol=length(lambdas))
+train_error_vec <- NULL
+for(i in 1:length(lambdas)){
+  train_lassos <- my_LASSO(train, lambdas[i])
+  train_beta_graph[, i] <- train_lassos$beta_L
+  train_error_vec[i] <- train_lassos$train_error
+}
+plot(lambdas,train_beta_graph[1,],col="red",type="l",ylim=c(-5,7),xlab="lambda",ylab="Betas",
+     main="Betas vs. Lambda")
+for(i in 2:nrow(train_beta_graph)){
+  lines(lambdas,train_beta_graph[i,])
+}
+abline(h=0,lty=2)
+```
+The red line represents our intercept since it moves differently compared to the other curves. The other 20 curves represent the beta values at different lambda values. As the chart shows, as lambda gets larger and larger, the betas go to zero.
+
+## Problem 3.3
+```{r}
+set.seed(8)
+folds <- createFolds(train$Y, k=5)
+CV_errors <- rep(0, length(lambdas))
+for(j in 1:length(lambdas)){
+    temp <- 0
+    for(i in 1:length(folds)){
+      #building the model with 4 folds
+      train_fold <- train[-folds[[i]], ]
+      test_fold <- train[folds[[i]],]
+      classifier <- my_LASSO(data = train_fold, lambda = lambdas[j])
+      
+      #testing the model on remaining fold
+      response <- test_fold[, 21]
+      response <- as.matrix(response - mean(response))
+      
+      design <- scale(test_fold[, 1:20 ])
+      design <- cbind(rep(1, nrow(design)), design)
+      betas<- as.matrix(classifier$beta_L)
+
+      ok <- mean(c((response - design%*%betas)^2))
+      temp <- temp + ok
+    }
+  CV_errors[j] <- temp/5
+  }
+CV_errors
+```
+
+```{r}
+response_test <- test[, 21]
+response_test <- response_test - mean(response_test)
+design <- scale(test[, 1:20])
+design <- as.matrix(cbind(rep(1, nrow(design)), design))
+testing_error <- NULL
+
+for(i in 1:length(lambdas)){
+  betas <- train_beta_graph[, i]
+  testing_error[i] <- mean(c(response_test - design%*%betas)^2)
+}
+
+testing_error
+```
+
+```{r}
+plot(lambdas,testing_error,col="red",type="l",xlab="lambda",ylab="Errors",
+     main="Training, Test, and CV Errors vs. Lambda")
+lines(lambdas,train_error_vec, col="blue")
+lines(lambdas, CV_errors, col = "black")
+legend(1, 95, legend=c("Test errors", "Training Errors", "CV errors"),
+       col=c("red", "blue", "black"), lty=1, cex=0.8)
+```
+The three curves show us that a lambda values somewhere around .1 works best for the data set. This makes sense since it was consistently assosciated with the lowest error for all three metrics.

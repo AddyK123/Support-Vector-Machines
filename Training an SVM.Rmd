@@ -1,0 +1,85 @@
+---
+title: "Question 2"
+author: "Aditya Khera"
+date: "2023-05-01"
+output: html_document
+---
+
+```{r}
+library(ggplot2)
+svm_data <- read.csv("/Users/adityakhera/Desktop/AML Practice/Pset 3/svmdata.csv")
+```
+
+## Problem 2.1
+```{r}
+z <- c(seq(-1, 3, .1))
+
+hinge_loss <- function(zvals){
+  loss_points <- rep(0, length(zvals))
+  for(i in 1:length(zvals)){
+    if(1-zvals[i]>0)
+      loss_points[i] <- (1-zvals[i])
+    else
+      0
+  }
+  return(loss_points)
+}
+
+plot(z, hinge_loss(z), ylim = c(-1, 2), type = "l",
+     xlab="Z Value",ylab="Hinge Loss")
+abline(h=0,lty=2)
+
+```
+
+What we see in the graph is a "corner point". From the left side the derivative is -1 from the right it is 0. This mismatch of derivatives means that the point z=1 is non-differentiable. 
+
+## 2.2 derivation attached
+
+## Problem 2.3
+```{r}
+c <- -2
+w1 <- -1
+w2 <- 1
+t <- 100
+lambda <- .25
+learning <- 1/(t*lambda)
+
+for(j in 1:t){
+  gradq <- 0
+  for(i in 1:nrow(svm_data)){
+    z <- svm_data$y[i]*(w1*svm_data$x1[i]+w2*svm_data$x2[i]+c)
+    parta <- rep(0, 3)
+    if(z>1)
+      parta <- rep(0, 3)
+    else
+      parta <- c(-1*svm_data$y[i], -1*svm_data$y[i]*svm_data$x1[i], -1*svm_data$y[i]*svm_data$x2[i])
+    
+    partb <- c(0, lambda*w1, lambda*w2)
+    gradq_i <- parta + partb
+    gradq <- gradq + gradq_i
+  }
+  change <- learning * gradq / nrow(svm_data)
+  c <- c - change[1]
+  w1 <- w1 - change[2]
+  w2 <- w2 - change[3]
+}
+
+betas <- data.frame(c, w1, w2)
+betas <- t(as.matrix(betas))
+betas
+```
+## Problem 2.4
+```{r}
+betas
+
+intercept <- -(c/w2)
+slope <- -(w1/w2)
+
+y_val <- as.factor(svm_data$y)
+plot(svm_data$x1, svm_data$x2, col = y_val, 
+     xlab="X1 Value", ylab="X2 Value", main = "Linear Decision Boundary Plot")
+legend(0, 0, legend = c("Y=1", "Y=-1"), col = c("black", "red"), cex=0.8)
+abline(intercept, slope, lwd =2)
+
+```
+

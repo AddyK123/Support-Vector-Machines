@@ -1,0 +1,154 @@
+---
+title: "Question 1"
+author: "Aditya Khera"
+date: "2023-04-26"
+output: html_document
+always_allow_html: true
+---
+
+```{r results = FALSE}
+library(e1071)
+library(caret)
+library("plotly")
+```
+
+## Data Set-Up
+```{r}
+set.seed(2)
+data5 <- read.csv("/Users/adityakhera/Desktop/AML Practice/Pset 3/train.5.txt", header=FALSE,)
+data6 <- read.csv("/Users/adityakhera/Desktop/AML Practice/Pset 3/train.6.txt", header=FALSE,)
+
+n.5 <- length(data5[,1])
+n.6 <- length(data6[,1])
+
+svm_data <- rbind(data5, data6)
+svm_data_label <- c(rep(1, n.5), rep(-1, n.6))
+svm_data_label <- as.factor(svm_data_label)
+svm_data <- cbind(svm_data_label, svm_data)
+
+n <- nrow(svm_data)
+
+test.subset <- sample(1:n,(n*.2),replace=FALSE)
+
+test.data <-  svm_data[test.subset,]
+train.data <- svm_data[-test.subset,]
+
+```
+
+## Cross Validating a Linear SVM
+```{r}
+set.seed(123)
+ctrl <- trainControl(method="cv",
+                     number = 5, search = "random",
+                     savePredictions = T)
+
+softmodelfit <- train(svm_data_label ~.-V1,
+                      data = train.data,
+                      method = "svmLinear2",
+                      trControl = ctrl,
+                      tuneLength = 10)
+softmodelfit$bestTune
+```
+From our random search we found that the ideal cost was .05018317, we will now use cross validation again to fine tune around that parameter
+
+```{r}
+ctrl_gen <-  trainControl(method="cv",
+                     number = 5,
+                     savePredictions = T)
+
+tuned_softmodelfit <- train(svm_data_label ~.-V1,
+                      data = train.data,
+                      method = "svmLinear2",
+                      trControl = ctrl_gen,
+                      tuneGrid = expand.grid(
+                        .cost = seq(.05, .5, .025)
+                      ))
+
+tuned_softmodelfit$bestTune
+
+```
+Through cross validation, it looks like the best cost parameter is .075.
+
+## Cross Validating a RBF
+```{r}
+set.seed(2)
+ctrl <- trainControl(method="cv",
+                     number = 5, search = "random",
+                     savePredictions = T)
+
+rbfmodelfit <- train(svm_data_label ~.-V1,
+                      data = train.data,
+                      method = "svmRadialSigma",
+                      trControl = ctrl,
+                      tuneLength = 10)
+rbfmodelfit$bestTune
+```
+From our random search we found that the ideal sigma and cost were .00234 and 10.200 respectively, we will now use cross validation again to fine tune around that parameter.
+
+```{r}
+set.seed(2)
+ctrl_gen <-  trainControl(method="cv",
+                     number = 5,
+                     savePredictions = T)
+
+tuned_rbfmodelfit <- train(svm_data_label ~.-V1,
+                      data = train.data,
+                      method = "svmRadialSigma",
+                      trControl = ctrl_gen,
+                      tuneGrid = expand.grid(
+                        .C = seq(1, 51, 5),
+                        .sigma = seq(.0005, .0055, .001)
+                      ))
+
+tuned_rbfmodelfit$bestTune
+```
+Through cross validation, it looks like the best combination of parameters is sigma = 0.0025 and cost = 6.
+
+## Training on full dataset
+```{r}
+linear <- svm(svm_data_label ~.-V1, data = train.data, kernel = "linear", cost = .075, scale = FALSE)
+print(linear)
+
+rbf <- svm(svm_data_label ~.-V1, data = train.data, kernel = "radial", cost = 6, gamma = .0025, scale = FALSE)
+print(rbf)
+```
+## Confusion matrix for training data
+```{r}
+table(predicted=linear$fitted,actual=train.data$svm_data_label)
+table(predicted=rbf$fitted,actual=train.data$svm_data_label)
+```
+
+## Testing error for linear kernel
+```{r}
+test_linear <- predict(linear, test.data)
+table(predicted=test_linear,actual=test.data$svm_data_label)
+mean(test_linear !=test.data$svm_data_label)
+```
+
+## Testing error for radial kernel
+```{r}
+test_rbf <- predict(rbf, test.data)
+table(predicted=test_rbf,actual=test.data$svm_data_label)
+mean(test_rbf !=test.data$svm_data_label)
+```
+
+## Homework 1.1
+```{r}
+costs <- tuned_softmodelfit$results$cost
+accuracies <- tuned_softmodelfit$results$Accuracy
+plot(costs, accuracies)
+
+
+fig <- plot_ly( x = tuned_rbfmodelfit$results$C, y = tuned_rbfmodelfit$results$sigma, z = tuned_rbfmodelfit$results$Accuracy, type = "contour")
+fig
+```
+
+## Homework 1.2
+```{r}
+print("Best hyperparameters for RBF (misclassification rate of 0.01229508)")
+tuned_rbfmodelfit$bestTune
+
+print("Best hyperparameters for linear (misclassification rate of 0.01229508)")
+tuned_softmodelfit$bestTune
+```
+The two models have the same misclassification rate. This means that both models are predicting our test set equally well. I would choose the linear SVM over the RBF since it is less complex. Since both preform the same, model complexity is the deciding factor.
